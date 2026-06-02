@@ -1,0 +1,6 @@
+rapidfuzz
+pandas
+nltk
+scikit-learn
+numpy
+matplotlib
