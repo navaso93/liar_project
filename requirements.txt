@@ -4,3 +4,6 @@ nltk
 scikit-learn
 numpy
 matplotlib
+fastapi
+uvicorn
+pydantic
