@@ -5,12 +5,12 @@ This file defines the Streamlit frontend for the LIAR prediction project.
 What is its responsibility?
 It collects user input, lets the user optionally provide metadata, sends the request to the FastAPI backend, and displays the prediction result.
 """
-
+import os
 import requests
 import streamlit as st
 
 
-API_URL = "http://34.22.226.103:8000/predict"
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/predict")
 
 MODEL_OPTIONS = ["naive"]
 
