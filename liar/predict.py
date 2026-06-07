@@ -10,9 +10,10 @@ from liar.preprocessing import preprocess_data
 from liar.registry import load_model
 from liar.models.naive import build_prediction_input, predict_naive
 from liar.models.naive_xboost import predict as predict_naive_xboost
+from liar.models.roberta import predict as predict_roberta
 
 
-SUPPORTED_MODELS = ["naive", "naive_xboost"]
+SUPPORTED_MODELS = ["naive", "naive_xboost", "roberta"]
 
 
 def predict(
@@ -77,6 +78,15 @@ def predict(
 
         return result
 
+    if model_name == "roberta":
+        result = predict_roberta(
+            {
+                "statement": statement,
+            }
+        )
+
+        return result
+
     raise ValueError(f"Unsupported model_name: {model_name}")
 
 
@@ -98,3 +108,11 @@ if __name__ == "__main__":
 
     print("Naive-XGBoost result:")
     print(naive_xboost_result)
+
+    roberta_result = predict(
+        statement="The economy is doing great.",
+        model_name="roberta",
+    )
+
+    print("RoBERTa result:")
+    print(roberta_result)

@@ -11,3 +11,6 @@ streamlit
 joblib
 requests
 xgboost
+torch
+transformers
+safetensors
