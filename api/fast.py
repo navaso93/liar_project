@@ -11,7 +11,7 @@ from typing import Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from liar.predict import predict
+from liar.predict import SUPPORTED_MODELS, predict
 
 
 app = FastAPI()
@@ -43,7 +43,7 @@ def root() -> dict:
 
     return {
         "message": "LIAR prediction API is running",
-        "available_models": ["naive"],
+        "available_models": SUPPORTED_MODELS,
     }
 
 

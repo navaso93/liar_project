@@ -3,15 +3,16 @@ What is this file?
 This file is the prediction entry point for the LIAR project.
 
 What is its responsibility?
-It loads a trained model from disk, builds a valid prediction input, applies the required preprocessing, and returns the model prediction.
+It routes prediction requests to the correct trained model, prepares the required input format, and returns a consistent prediction response.
 """
 
 from liar.preprocessing import preprocess_data
 from liar.registry import load_model
 from liar.models.naive import build_prediction_input, predict_naive
+from liar.models.naive_xboost import predict as predict_naive_xboost
 
 
-SUPPORTED_MODELS = ["naive"]
+SUPPORTED_MODELS = ["naive", "naive_xboost"]
 
 
 def predict(
@@ -34,40 +35,66 @@ def predict(
     """
 
     if model_name not in SUPPORTED_MODELS:
-        raise ValueError(f"Unsupported model_name: {model_name}. Supported models: {SUPPORTED_MODELS}")
-
-    input_df = build_prediction_input(
-        statement=statement,
-        subject=subject,
-        speaker=speaker,
-        job_title=job_title,
-        state=state,
-        party=party,
-        context=context,
-        barely_true_counts=barely_true_counts,
-        false_counts=false_counts,
-        half_true_counts=half_true_counts,
-        mostly_true_counts=mostly_true_counts,
-        pants_on_fire_counts=pants_on_fire_counts,
-    )
-
-    input_df = preprocess_data(input_df)
-
-    model = load_model(model_name)
+        raise ValueError(
+            f"Unsupported model_name: {model_name}. Supported models: {SUPPORTED_MODELS}"
+        )
 
     if model_name == "naive":
+        input_df = build_prediction_input(
+            statement=statement,
+            subject=subject,
+            speaker=speaker,
+            job_title=job_title,
+            state=state,
+            party=party,
+            context=context,
+            barely_true_counts=barely_true_counts,
+            false_counts=false_counts,
+            half_true_counts=half_true_counts,
+            mostly_true_counts=mostly_true_counts,
+            pants_on_fire_counts=pants_on_fire_counts,
+        )
+
+        input_df = preprocess_data(input_df)
+
+        model = load_model(model_name)
+
         result = predict_naive(model, input_df)
 
-    return {
-        "model_name": model_name,
-        **result,
-    }
+        return {
+            "model_name": model_name,
+            **result,
+        }
+
+    if model_name == "naive_xboost":
+        result = predict_naive_xboost(
+            {
+                "statement": statement,
+                "speaker": speaker,
+                "context": context,
+            }
+        )
+
+        return result
+
+    raise ValueError(f"Unsupported model_name: {model_name}")
 
 
 if __name__ == "__main__":
-    result = predict(
+    naive_result = predict(
         statement="The economy is growing faster than ever.",
         model_name="naive",
     )
 
-    print(result)
+    print("Naive result:")
+    print(naive_result)
+
+    naive_xboost_result = predict(
+        statement="Donald Trump was born on Mars.",
+        speaker="Barack Obama",
+        context="interview",
+        model_name="naive_xboost",
+    )
+
+    print("Naive-XGBoost result:")
+    print(naive_xboost_result)

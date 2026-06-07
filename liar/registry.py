@@ -15,6 +15,7 @@ SAVED_MODELS_DIR = Path("saved_models")
 
 MODEL_PATHS = {
     "naive": SAVED_MODELS_DIR / "naive" / "model.joblib",
+    "naive_xboost": SAVED_MODELS_DIR / "naive_xboost" / "model.joblib",
 }
 
 
