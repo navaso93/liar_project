@@ -14,3 +14,11 @@ xgboost
 torch
 transformers
 safetensors
+langchain-google-genai
+langchain-chroma
+langchain-core
+chromadb
+langchain-chroma
+langchain-google-genai
+langchain-core
+chromadb

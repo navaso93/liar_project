@@ -222,3 +222,4 @@ __marimo__/
 
 # roBERTa model
 saved_models/roberta/
+chroma_db/

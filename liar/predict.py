@@ -11,7 +11,8 @@ from liar.registry import load_model
 from liar.models.naive import build_prediction_input, predict_naive
 from liar.models.naive_xboost import predict as predict_naive_xboost
 from liar.models.roberta import predict as predict_roberta
-
+from liar.vectorstore import retrieve_similar_statements_as_dicts
+from liar.gemini import generate_gemini_explanation
 
 SUPPORTED_MODELS = ["naive", "naive_xboost", "roberta"]
 
@@ -116,3 +117,62 @@ if __name__ == "__main__":
 
     print("RoBERTa result:")
     print(roberta_result)
+
+def explain_prediction(
+    statement: str,
+    model_name: str = "naive",
+    subject: str = "unknown",
+    speaker: str = "unknown",
+    job_title: str = "other",
+    state: str = "unknown",
+    party: str = "unknown",
+    context: str = "other",
+    barely_true_counts: int = 0,
+    false_counts: int = 0,
+    half_true_counts: int = 0,
+    mostly_true_counts: int = 0,
+    pants_on_fire_counts: int = 0,
+    k_similar: int = 4,
+) -> dict:
+    """
+    Predict the statement, retrieve similar statements, and generate a Gemini explanation.
+    """
+
+    input_data = {
+        "statement": statement,
+        "speaker": speaker,
+        "context": context,
+    }
+
+    prediction_result = predict(
+        statement=statement,
+        model_name=model_name,
+        subject=subject,
+        speaker=speaker,
+        job_title=job_title,
+        state=state,
+        party=party,
+        context=context,
+        barely_true_counts=barely_true_counts,
+        false_counts=false_counts,
+        half_true_counts=half_true_counts,
+        mostly_true_counts=mostly_true_counts,
+        pants_on_fire_counts=pants_on_fire_counts,
+    )
+
+    similar_statements = retrieve_similar_statements_as_dicts(
+        statement=statement,
+        k_similar=k_similar,
+    )
+
+    gemini_explanation = generate_gemini_explanation(
+        input_data=input_data,
+        prediction_result=prediction_result,
+        similar_statements=similar_statements,
+    )
+
+    return {
+        **prediction_result,
+        "similar_statements": similar_statements,
+        "gemini_explanation": gemini_explanation,
+    }
