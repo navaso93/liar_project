@@ -3,7 +3,7 @@ What is this file?
 This file defines the FastAPI backend for the LIAR prediction service.
 
 What is its responsibility?
-It exposes API endpoints, receives user input, sends the input to the prediction layer, and returns prediction results as JSON.
+It exposes API endpoints, receives user input, sends the input to the prediction or explanation layer, and returns results as JSON.
 """
 
 from typing import Optional
@@ -11,7 +11,7 @@ from typing import Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from liar.predict import SUPPORTED_MODELS, predict
+from liar.predict import SUPPORTED_MODELS, explain_prediction, predict
 
 
 app = FastAPI()
@@ -44,6 +44,7 @@ def root() -> dict:
     return {
         "message": "LIAR prediction API is running",
         "available_models": SUPPORTED_MODELS,
+        "available_endpoints": ["/predict", "/explain"],
     }
 
 
@@ -54,6 +55,31 @@ def predict_statement(request: PredictionRequest) -> dict:
     """
 
     result = predict(
+        model_name=request.model_name,
+        statement=request.statement,
+        subject=request.subject,
+        speaker=request.speaker,
+        job_title=request.job_title,
+        state=request.state,
+        party=request.party,
+        context=request.context,
+        barely_true_counts=request.barely_true_counts,
+        false_counts=request.false_counts,
+        half_true_counts=request.half_true_counts,
+        mostly_true_counts=request.mostly_true_counts,
+        pants_on_fire_counts=request.pants_on_fire_counts,
+    )
+
+    return result
+
+
+@app.post("/explain")
+def explain_statement(request: PredictionRequest) -> dict:
+    """
+    Predict the truthfulness category, retrieve similar statements, and generate an explanation.
+    """
+
+    result = explain_prediction(
         model_name=request.model_name,
         statement=request.statement,
         subject=request.subject,
