@@ -16,7 +16,7 @@ def prompt_creator(
     input_data: dict,
     prediction_result: dict,
     similar_statements: list[dict],
-    max_words: int = 120,
+    max_words: int = 200,
 ) -> list:
     """
     Create a prompt for Gemini based on prediction result and retrieved similar statements.
@@ -37,8 +37,9 @@ Rules:
 - Explain patterns, similarities, uncertainty, and possible rhetorical signals.
 - Only three labels are possible: unreliable, questionable, trustworthy.
 - Write a complete answer.
-- Do not start an unfinished quote.
-- Do not end mid-sentence.
+- Do not use markdown tables.
+- Do not use bold text.
+- Do not use bullet points.
 """
 
     statement = input_data.get("statement", "unknown")
@@ -86,17 +87,26 @@ Class probabilities:
 Retrieved similar statements:
 {similar_text}
 
-Write one complete explanation in maximum {max_words} words.
+Write one complete explanation in 4 to 6 sentences and maximum {max_words} words.
+Do not write only one sentence.
 
-The explanation must cover:
-1. The dominant pattern in the retrieved examples.
-2. How that pattern relates to the model prediction.
+Your explanation must cover:
+1. What pattern appears in the retrieved similar statements.
+2. How that pattern supports or weakens the selected model prediction.
 3. What uncertainty remains.
 
 Important:
-- Do not use markdown tables.
+- This is not an objective fact-check.
+- This is an explanation of model behavior and retrieved examples.
+- Do not simply repeat the label distribution.
+- Explain the retrieved examples specifically.
+- Mention at least two retrieved examples by their speaker or label.
+- Write 4 to 6 complete sentences.
+- Do not use bullet points.
+- Do not use markdown formatting.
+- Do not use bold text.
 - Do not end mid-sentence.
-- End with a complete sentence.
+- Use natural language.
 """
 
     return [
@@ -105,12 +115,90 @@ Important:
     ]
 
 
+def extract_response_text(response) -> str:
+    """
+    Extract plain text from a Gemini/LangChain response object.
+    """
+
+    explanation = getattr(response, "content", None)
+
+    if isinstance(explanation, list):
+        explanation = " ".join(
+            [
+                item.get("text", "")
+                if isinstance(item, dict)
+                else str(item)
+                for item in explanation
+            ]
+        )
+
+    if not explanation:
+        explanation = getattr(response, "text", "")
+
+    return str(explanation).strip()
+
+
+def is_valid_gemini_explanation(explanation: str) -> bool:
+    """
+    Check whether the Gemini explanation is complete enough to show to the user.
+    """
+
+    if not explanation:
+        return False
+
+    sentence_count = (
+        explanation.count(".")
+        + explanation.count("!")
+        + explanation.count("?")
+    )
+
+    ends_cleanly = explanation.endswith((".", "!", "?"))
+    is_long_enough = len(explanation) >= 250
+
+    mentions_retrieved_examples = (
+        "retrieved" in explanation.lower()
+        or "similar" in explanation.lower()
+        or "example" in explanation.lower()
+        or "statement" in explanation.lower()
+    )
+
+    return (
+        is_long_enough
+        and sentence_count >= 3
+        and ends_cleanly
+        and mentions_retrieved_examples
+    )
+
+
+def build_retry_prompt(previous_answer: str) -> HumanMessage:
+    """
+    Build a corrective prompt when Gemini returns a weak or incomplete answer.
+    """
+
+    return HumanMessage(
+        content=f"""
+Your previous answer was incomplete, too short, or too shallow:
+
+{previous_answer}
+
+Rewrite it as a complete 4 to 6 sentence explanation.
+Mention at least two retrieved examples by speaker or label.
+Explain how the retrieved examples relate to the model prediction.
+Explain what uncertainty remains.
+End with a complete sentence.
+Do not use markdown formatting.
+Do not use bold text.
+Do not use bullet points.
+"""
+    )
+
+
 def build_fallback_explanation(
     prediction_result: dict,
     similar_statements: list[dict],
 ) -> str:
     """
-    Build a deterministic fallback explanation if Gemini is unavailable or returns an incomplete answer.
+    Build a deterministic fallback explanation if Gemini is unavailable or repeatedly returns weak answers.
     """
 
     prediction = prediction_result.get("prediction", "unknown")
@@ -141,16 +229,16 @@ def generate_gemini_explanation(
     input_data: dict,
     prediction_result: dict,
     similar_statements: list[dict],
-    temperature: float = 0.2,
-    max_tokens: int = 600,
-    max_words: int = 120,
+    temperature: float = 0.3,
+    max_tokens: int = 1200,
+    max_words: int = 200,
     max_retries: int = 3,
-    retry_delay_seconds: int = 5,
-    min_valid_length: int = 120,
+    retry_delay_seconds: int = 1,
 ) -> str:
     """
     Generate a Gemini explanation for a prediction result.
-    If Gemini is temporarily unavailable or returns an incomplete answer, retry before returning a clean fallback explanation.
+    Return Gemini output only when it is complete and useful.
+    Use fallback when Gemini fails or repeatedly returns weak/incomplete text.
     """
 
     messages = prompt_creator(
@@ -167,22 +255,36 @@ def generate_gemini_explanation(
     )
 
     last_error = None
+    last_incomplete_answer = None
 
     for attempt in range(1, max_retries + 1):
         try:
             response = llm_model.invoke(messages)
-            explanation = response.text.strip()
+            explanation = extract_response_text(response)
 
-            is_complete_sentence = explanation.endswith((".", "!", "?"))
-
-            if len(explanation) >= min_valid_length and is_complete_sentence:
+            if is_valid_gemini_explanation(explanation):
                 return explanation
 
+            last_incomplete_answer = explanation
             last_error = (
-                f"Gemini returned an incomplete explanation: {repr(explanation)}"
+                "Gemini returned a weak or incomplete explanation: "
+                f"{repr(explanation)}"
             )
 
-            print(f"Gemini explanation incomplete on attempt {attempt}: {last_error}")
+            print(f"Gemini explanation rejected on attempt {attempt}: {last_error}")
+
+            messages = prompt_creator(
+                input_data=input_data,
+                prediction_result=prediction_result,
+                similar_statements=similar_statements,
+                max_words=max_words,
+            )
+
+            messages.append(
+                build_retry_prompt(
+                    previous_answer=last_incomplete_answer,
+                )
+            )
 
         except Exception as error:
             last_error = error
@@ -197,8 +299,8 @@ def generate_gemini_explanation(
     )
 
     print(
-        "Gemini explanation was not used because the response was unavailable "
-        f"or incomplete. Last error: {last_error}"
+        "Gemini explanation was not used because Gemini failed or repeatedly returned weak text. "
+        f"Last error: {last_error}"
     )
 
     return fallback
