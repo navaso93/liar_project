@@ -1,5 +1,5 @@
 # liar_project
-This is the repository to work on the github repository for the liar LeWagon project
+This is the repository to work on the github repository for the liar LeWagon project.
 This README file contains explanations on the followed process to get from the raw data to the end product, sequentially.
 
 # Data Preprocessing
@@ -152,9 +152,9 @@ roBERTa training process
 4. finetuning of parameters
 - no finetuniong needed with an f1 macro of 0.69 to reduce CO2 cost
 
-  ## 4 most similar statements##
+## 4 most similar statements ##
 
-  ## AI based Explaination of the Prediction ##
+## AI based Explaination of the Prediction ##
   The result of the prediction, the 4 most similiar statements as well as the statment, context and speaker are handed over to Gmini AI with the following Prompt:
   """
 You are a political fact-checking assistant.
@@ -176,7 +176,7 @@ Rules:
 - Do not use bullet points.
 """
 
-   ## User Interface ##
+## User Interface ##
   The Website was created using streamlit. It contains 3 sites
   - Main: Interface for User to input statement, context and speaker and to choose the model. A drop down menu was used because the models were trained on clustered data regarding context and speaker
   - Why LIAR: a site with the project context and the motivation
