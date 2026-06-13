@@ -49,12 +49,6 @@ The data is then preprocessed in order to be used for training the models.
 
 ## Data Preprocessing
 ### Text Preprocessing
-# liar_project
-This is the repository to work on the github repository for the liar LeWagon project.
-This README file contains explanations on the followed process to get from the raw data to the end product, sequentially.
-
-# Data Preprocessing
-## Text Preprocessing
 
 - Uppercase & lowercase
 All words can be transformed to lowercase. Recommendation is to do it when using traditional NLP models (Bag of Words, TF-IDF...).
@@ -251,15 +245,36 @@ Chroma database contains all embeded statements as content, with 'speaker' and '
 The code relative to the LLM information retrieval can be seen in "gemini.py".
 First the prompt is generated, by adding contextual information on the prediction (label, score...) as well as the similar sentences retrieved in the previous step.The LLM is then asked to give an explanation relating both.
 The connection to the LLM is then done under defined hyperparameters as seen in function 'generate_gemini_explanation'.
+Below is the prompt used:
+"""
+  You are a political fact-checking assistant.
+
+  Your task is to explain a machine learning prediction using only:
+  - the user's statement,
+  - the selected model's prediction result,
+  - the retrieved similar statements from the training dataset.
+
+  Rules:
+  - Do not invent external facts.
+  - Do not claim the prediction is objectively true.
+  - Do not fact-check the real world.
+  - Explain patterns, similarities, uncertainty, and possible rhetorical signals.
+  - Only three labels are possible: unreliable, questionable, trustworthy.
+  - Write a complete answer.
+  - Do not use markdown tables.
+  - Do not use bold text.
+  - Do not use bullet points.
+"""
 
 
 ## MLOps Architecture
 
 
 ## Website and final product
-The LIAR web application provides an interactive interface for evaluating the trustworthiness of political statements.
-
-Built with Streamlit, the application allows users to submit a statement together with optional contextual information such as the speaker and communication context. The request is sent to a FastAPI backend, which performs the prediction and returns additional analysis.
+The Website was created using streamlit. It contains 3 sites
+- Main: Interface for User to input statement, context and speaker and to choose the model. A drop down menu was used because the models were trained on clustered data regarding context and speaker
+- Why LIAR: a site with the project context and the motivation
+- Vision: a site with an outlook onto the possible further development of LIAR
 
 ### Main Features:
 
@@ -299,7 +314,20 @@ The interface is organized into the following sections:
 
 The frontend communicates with a FastAPI service deployed on Google Cloud Run. Predictions, retrieved examples, and explanations are returned as JSON responses and displayed dynamically within the application.
 
-## Technologies
+## Used Tools, Architecture and Owner##
+Backend:
+- liar_project git repository (Marc)
+- Dataset search and preprocessing (Marc)
+- Training Naive Bayes algorithm and XGBoost (Marc)
+- docker image on Google Artifact Registry (Ulrike)
+- trained roBERTa on Google Vertex AI (Ulrike)
+- GeminiAPI Key (Ulrike)
+Frontend:
+- liar_webiste git repository (Abed)
+- Uvicorn Webserver on Google Cloud Run (Abed)
+- Streamlit Website (Abed & Marc)
+
+### Technologies
 Overview on LIAR#s used technologies:
 - Streamlit
 - FastAPI
@@ -309,98 +337,3 @@ Overview on LIAR#s used technologies:
 - Scikit-learn
 - XGBoost
 - RoBERTa
-**LDA Under the Hood:**
-- Goal of LDA is to find topics across documents.
-- It converts the vectorized documents (document_term_matrix) into two matrices:
-  - document_topic_mixture
-  - topic_word_mixture
-IMPORTANT: You can select the number of topics you want to detect in your corpus of documents.
-- n_components = 2: Topic 0 and topic 1.
-Read more about "Under the Hood" on lecture "Natural Language Processing"
-
-## roBERTa model: ##
-
-roBERTa training process
-1. training on LIAR Dataset with columns statement (= feature)and labels (= traget) in Google Colab Notebook
-- labels defined in 3 classes as stated before
-- numeric encoding label2id = {"trustworthy": 0, "questionable": 1, "unreliable": 2}
-- result: accuracy of 0.49, f1 recall macro of 0.46
-
-2. re-training on modified LIAR Dataset in Vertex AI setup
-- Vertex AI setup:
-  - dataset: BCS Bucket liar_model/data
-  - model: GCS Bucket liar_model/model
-  - Server zone: europe-west 1 (Belgium), GPU Quota = 1
-- Speaker and Context from the dataset where added to statement
-  - eg: Wisconsin is on pace to double the number of layoffs this year. [SPEAKER: katrina-shankland] [CONTEXT: a news conference],2
-- lables unchanged
-- data sets saved as csv in GCS
-  - Result:
-    'eval_loss': 1.7021315097808838,
-    'eval_accuracy': 0.4660950896336711,
-    'eval_recall_macro': 0.4456767574588188,
-    'eval_precision_macro': 0.44797375303712644,
-    'eval_f1_macro': 0.43657268069171923,
-    'eval_runtime': 6.0383,
-    'eval_samples_per_second': 212.476,
-    'eval_steps_per_second': 13.414,
-    'epoch': 5.0
-
-3. added politifact dataset to the LIAR Datset and retrained model
-- preprocessing of politifact data like before: reducing labels to 3, number encoding as stated before, concatination of statement, speaker and context to one final statement
-- split into train/validation/test set with 60/20/20 ratio
-- merge of LIAR and politifact dataset (train, valid, test) to about 30.000 statements in total
-  - test metrices of the trained roBERTa model:
-   "test_loss":  "1.0063432455062866n",
-   "test_accuracy":  "0.7254866290704021n",
-   "test_recall_macro": "0.7021470571188857n",
-   "test_precision_macro": "0.6852322634252183n",
-   "test_f1_macro": "0.6904495512671932n",
-   "test_runtime": 25.1844,
-   "test_samples_per_second": 218.27,
-   "test_steps_per_second": 13.659,
-   "epoch": 5
-
-4. finetuning of parameters
-- no finetuniong needed with an f1 macro of 0.69 to reduce CO2 cost
-
-## 4 most similar statements ##
-
-## AI based Explaination of the Prediction ##
-  The result of the prediction, the 4 most similiar statements as well as the statment, context and speaker are handed over to Gmini AI with the following Prompt:
-  """
-You are a political fact-checking assistant.
-
-Your task is to explain a machine learning prediction using only:
-- the user's statement,
-- the selected model's prediction result,
-- the retrieved similar statements from the training dataset.
-
-Rules:
-- Do not invent external facts.
-- Do not claim the prediction is objectively true.
-- Do not fact-check the real world.
-- Explain patterns, similarities, uncertainty, and possible rhetorical signals.
-- Only three labels are possible: unreliable, questionable, trustworthy.
-- Write a complete answer.
-- Do not use markdown tables.
-- Do not use bold text.
-- Do not use bullet points.
-"""
-
-## User Interface ##
-  The Website was created using streamlit. It contains 3 sites
-  - Main: Interface for User to input statement, context and speaker and to choose the model. A drop down menu was used because the models were trained on clustered data regarding context and speaker
-  - Why LIAR: a site with the project context and the motivation
-  - Vision: a site with an outlook onto the possible further development of LIAR
-
-## Used Tools, Architecture and Owner##
-Backend:
-- liar_project git repository (Marc)
-- docker image on Google Artifact Registry (Ulrike)
-- trained roBERTa on Google Vertex AI (Ulrike)
-- GeminiAPI Key (Ulrike)
-Frontend:
-- liar_webiste git repository (Abed)
-- Uvicorn Webserver on Google Cloud Run (Abed)
-- Streamlit Website (Abed)
